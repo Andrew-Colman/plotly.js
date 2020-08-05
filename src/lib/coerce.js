@@ -18,22 +18,49 @@ var DESELECTDIM = require('../constants/interactions').DESELECTDIM;
 var nestedProperty = require('./nested_property');
 var counterRegex = require('./regex').counter;
 var modHalf = require('./mod').modHalf;
+var isPlainObject = require('./is_plain_object');
 var isArrayOrTypedArray = require('./array').isArrayOrTypedArray;
+
+var typedArrays = {
+    int8: 1,
+    uint8: 1,
+    uint8clamped: 1,
+    int16: 1,
+    uint16: 1,
+    int32: 1,
+    uint32: 1,
+    float32: 1,
+    float64: 1,
+    bigint64: 1,
+    biguint64: 1
+};
 
 exports.valObjectMeta = {
     data_array: {
         // You can use *dflt=[] to force said array to exist though.
         description: [
             'An {array} of data.',
-            'The value MUST be an {array}, or we ignore it.',
-            'Note that typed arrays (e.g. Float32Array) are supported.'
+            'The value could be an {array}',
+            'noting that typed arrays (e.g. Float32Array) are also supported.',
+            'It could also be an object in the form of',
+            'v: {, dtype: \'float32\', bvals: [/* ... */]}, shape: [dim0 (, dim1, (dim3))]',
+            'otherwise, it would be ignored.'
         ].join(' '),
         requiredOpts: [],
         otherOpts: ['dflt'],
         coerceFunction: function(v, propOut, dflt) {
-            // TODO maybe `v: {type: 'float32', vals: [/* ... */]}` also
-            if(isArrayOrTypedArray(v)) propOut.set(v);
-            else if(dflt !== undefined) propOut.set(dflt);
+            var wasSet;
+            if(isArrayOrTypedArray(v)) {
+                propOut.set(v);
+                wasSet = true;
+            } else if(isPlainObject(v)) {
+                var T = typedArrays[v.dtype];
+                if(T) {
+                    propOut.set(v);
+                    wasSet = true;
+                }
+            }
+            if(!wasSet && dflt !== undefined) propOut.set(dflt);
         }
     },
     enumerated: {
